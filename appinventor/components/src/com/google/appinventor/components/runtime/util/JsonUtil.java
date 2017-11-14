@@ -20,6 +20,8 @@ import gnu.math.IntFraction;
 import java.io.File;
 import java.io.FileOutputStream;
 
+import com.google.gson.Gson;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -195,6 +197,10 @@ public class JsonUtil {
     }
     if (value instanceof List) {
       value = ((List)value).toArray();
+    }
+    if (value instanceof YailDictionary) {
+      Gson gson = new Gson(); 
+      return gson.toJson(value);
     }
     if (value.getClass().isArray()) {
       StringBuilder sb = new StringBuilder();
