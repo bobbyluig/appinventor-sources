@@ -2354,7 +2354,10 @@ Dictionary implementation.
 
 - make dictionary           (make-yail-dictionary . pairs)
 - make pair                 (make-dictionary-pair key value)
+- set pairs                 (yail-dictionary-set-pairs yail-dictionary . pairs)
+- delete pairs              (yail-dictionary-delete-pairs yail-dictionary . keys)
 - dictionary lookup         (yail-dictionary-lookup key yail-dictionary default)
+- dict recursive lookup     (yail-dictionary-recursive-lookup keys yail-dictionary default)
 - get keys                  (yail-dictionary-get-keys yail-dictionary)
 - get values                (yail-dictionary-get-values yail-dictionary)
 - is key in dict            (yail-dictionary-is-key-in key yail-dictionary)
@@ -2373,6 +2376,14 @@ Dictionary implementation.
   (make-yail-list key value)
 )
 
+(define (yail-dictionary-set-pairs yail-dictionary . pairs)
+  (*:setPairs (as YailDictionary yail-dictionary) pairs)
+)
+
+(define (yail-dictionary-delete-pairs yail-dictionary . keys)
+  (*:deletePairs (as YailDictionary yail-dictionary) keys)
+)
+
 (define (yail-dictionary-lookup key yail-dictionary default)
   (android-log
    (format #f "Dictionary lookup key is  ~A and table is ~A" key yail-dictionary))
@@ -2385,6 +2396,15 @@ Dictionary implementation.
     (if (null? result)
       default
       result))
+)
+
+(define (yail-dictionary-recursive-lookup keys yail-dictionary default)
+  (let ((result (*:recursiveGet (as YailDictionary yail-dictionary) (yail-list-contents keys))))
+    (if (null? result)
+      default
+      result
+    )
+  )
 )
 
 (define (yail-dictionary-get-keys yail-dictionary)
