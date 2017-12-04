@@ -2299,14 +2299,9 @@ list, use the make-yail-list constructor with no arguments.
            (cadr (yail-list-contents (car pairs-to-check))))
           (else (loop (cdr pairs-to-check))))))
 
-
-
 (define (pair-ok? candidate-pair)
   (and (yail-list? candidate-pair)
        (= (length (yail-list-contents candidate-pair)) 2)))
-
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; End of List implementation
@@ -2328,6 +2323,7 @@ Dictionary implementation.
 - is key in dict            (yail-dictionary-is-key-in key yail-dictionary)
 - get length of dict        (yail-dictionary-length yail-dictionary)
 - get copy of dict          (yail-dictionary-copy yail-dictionary)
+- turn alist to dict        (yail-dictionary-alist-to-dict alist)
 
 - is YailDictionary?        (yail-dictionary? x)
 
@@ -2389,6 +2385,19 @@ Dictionary implementation.
 (define (yail-dictionary-length yail-dictionary)
   (*:size (as YailDictionary yail-dictionary))
 )
+
+(define (yail-dictionary-alist-to-dict alist)
+  (android-log
+   (format #f "List alist table is ~A" alist))
+  (let loop ((pairs-to-check (yail-list-contents alist)))
+    (cond ((null? pairs-to-check) "The list of pairs has a null pair")
+          ((not (pair-ok? (car pairs-to-check)))
+           (signal-runtime-error
+            (format #f "List of pairs to dict: the list ~A is not a well-formed list of pairs"
+                    (get-display-representation alist))
+            "Invalid list of pairs"))
+          (else (loop (cdr pairs-to-check)))))
+  (YailDictionary:alistToDict alist))
 
 (define (yail-dictionary-copy yail-dictionary)
   (*:clone (as YailDictionary yail-dictionary))

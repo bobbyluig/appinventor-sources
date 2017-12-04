@@ -142,6 +142,17 @@ Blockly.Yail['dictionaries_length'] = function() {
   return [ code, Blockly.Yail.ORDER_ATOMIC ];
 };
 
+Blockly.Yail['dictionaries_alist_to_dict'] = function() {
+  var argument = Blockly.Yail.valueToCode(this, 'PAIRS', Blockly.Yail.ORDER_NONE) || Blockly.Yail.emptyDictCode;
+  var code = Blockly.Yail.YAIL_CALL_YAIL_PRIMITIVE + "yail-dictionary-alist-to-dict" + Blockly.Yail.YAIL_SPACER;
+  code = code + Blockly.Yail.YAIL_OPEN_COMBINATION + Blockly.Yail.YAIL_LIST_CONSTRUCTOR + Blockly.Yail.YAIL_SPACER;
+  code = code + argument + Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_CLOSE_COMBINATION;
+  code = code + Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_QUOTE + Blockly.Yail.YAIL_OPEN_COMBINATION;
+  code = code + "list" + Blockly.Yail.YAIL_CLOSE_COMBINATION + Blockly.Yail.YAIL_SPACER;
+  code = code + Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_DOUBLE_QUOTE + "convert an alist to a dictionary" + Blockly.Yail.YAIL_DOUBLE_QUOTE + Blockly.Yail.YAIL_CLOSE_COMBINATION;
+  return [ code, Blockly.Yail.ORDER_ATOMIC ];
+};
+
 Blockly.Yail['dictionaries_copy'] = function() {
   var argument = Blockly.Yail.valueToCode(this, 'DICT', Blockly.Yail.ORDER_NONE) || Blockly.Yail.emptyDictCode;
   var code = Blockly.Yail.YAIL_CALL_YAIL_PRIMITIVE + "yail-dictionary-copy" + Blockly.Yail.YAIL_SPACER;
