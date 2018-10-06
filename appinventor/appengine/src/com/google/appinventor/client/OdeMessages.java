@@ -2657,6 +2657,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String gameClientComponentPallette();
 
+  @DefaultMessage("GraphQL")
+  @Description("")
+  String graphQLComponentPallette();
+
   @DefaultMessage("password")
   @Description("")
   String passwordParams();
@@ -6142,6 +6146,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String FirebaseDBHelpStringComponentPallette();
 
+  @DefaultMessage("A non-visible component that allows you to interact with a GraphQL endpoint. " +
+      "Learn more at <a target=\"_blank\" href=\"https://graphql.org/\">graphql.org</a>.")
+  @Description("")
+  String GraphQLHelpStringComponentPallette();
 
   //Ode.java messages
   @DefaultMessage("Welcome to App Inventor 2!")
