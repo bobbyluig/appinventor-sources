@@ -95,6 +95,12 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
 
   private static class BasicMutation implements Mutation<Operation.Data, Object, Operation.Variables> {
 
+    private final String operationName;
+
+    public BasicMutation(String operationName) {
+      this.operationName = operationName;
+    }
+
     @Override
     public String queryDocument() {
       return null;
