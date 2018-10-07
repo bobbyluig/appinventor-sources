@@ -338,24 +338,23 @@ public final class SimpleComponentDescriptor {
    */
   public static MockComponent createMockComponent(String name, String type, SimpleEditor editor) {
     if (SimpleComponentDatabase.getInstance(editor.getProjectId()).getNonVisible(name)) {
-      switch (name) {
-        case MockFirebaseDB.TYPE:
-          return new MockFirebaseDB(editor, name,
-              getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
-                  null, editor.getProjectId()));
-        case MockCloudDB.TYPE:
-          return new MockCloudDB(editor, name,
-              getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
-                  null, editor.getProjectId()));
-        case MockGraphQL.TYPE:
-          return new MockGraphQL(editor, name,
-              getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
-                  null, editor.getProjectId()));
-        default:
-          String pkgName = type.contains(".") ? type.substring(0, type.lastIndexOf('.')) : null;
-          return new MockNonVisibleComponent(editor, name,
-              getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
-                  pkgName, editor.getProjectId()));
+      if (MockFirebaseDB.TYPE.equals(name)) {
+        return new MockFirebaseDB(editor, name,
+            getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
+                null, editor.getProjectId()));
+      } else if (MockCloudDB.TYPE.equals(name)) {
+        return new MockCloudDB(editor, name,
+            getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
+                null, editor.getProjectId()));
+      } else if (MockGraphQL.TYPE.equals(name)) {
+        return new MockGraphQL(editor, name,
+            getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
+                null, editor.getProjectId()));
+      } else {
+        String pkgName = type.contains(".") ? type.substring(0, type.lastIndexOf('.')) : null;
+        return new MockNonVisibleComponent(editor, name,
+            getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
+                pkgName, editor.getProjectId()));
       }
     } else if (name.equals(MockButton.TYPE)) {
       return new MockButton(editor);
