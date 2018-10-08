@@ -289,6 +289,7 @@ class ComponentDatabase implements ComponentDatabaseInterface {
       throw new ComponentNotFoundException(componentName);
     }
 
+
     return component.getMethods();
   }
 

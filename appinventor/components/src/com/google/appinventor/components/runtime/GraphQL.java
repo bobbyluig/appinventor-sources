@@ -2,12 +2,7 @@ package com.google.appinventor.components.runtime;
 
 import android.app.Activity;
 import android.os.Handler;
-import com.apollographql.apollo.ApolloClient;
-import com.apollographql.apollo.api.Mutation;
-import com.apollographql.apollo.api.Operation;
-import com.apollographql.apollo.api.OperationName;
-import com.apollographql.apollo.api.Query;
-import com.apollographql.apollo.api.ResponseFieldMapper;
+import android.util.Log;
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
 import com.google.appinventor.components.annotations.PropertyCategory;
@@ -20,9 +15,29 @@ import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
+import com.google.gson.Gson;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import org.jetbrains.annotations.NotNull;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * The {@link GraphQL} component communicates with a GraphQL endpoint to execute queries and mutations. It represents
+ * returned data as a dictionary. All queries have an associated operation name and are executed asynchronously.
+ * Completed queries trigger different events depending on whether there the queries had any errors.
+ *
+ * @author lujingcen@gmail.com (Lujing Cen)
+ */
 @DesignerComponent(version = YaVersion.GRAPHQL_COMPONENT_VERSION,
     description = "Non-visible component that interacts with a GraphQL endpoint.",
     designerHelpDescription = "Non-visible component that interacts with a GraphQL endpoint.",
@@ -31,18 +46,18 @@ import org.jetbrains.annotations.NotNull;
     iconName = "images/graphQL.png")
 @SimpleObject
 @UsesPermissions(permissionNames = "android.permission.INTERNET")
-@UsesLibraries(libraries = "apollo-runtime.jar, apollo-api.jar, okhttp.jar, okio.jar")
+@UsesLibraries(libraries = "okhttp.jar, okio.jar, gson-2.8.5.jar")
 public class GraphQL extends AndroidNonvisibleComponent implements Component {
-
   private static final String LOG_TAG = "GraphQL";
+
+  private static final OkHttpClient CLIENT = new OkHttpClient();
+  private static final MediaType JSON_CONTENT_TYPE = MediaType.parse("application/json");
 
   private final Handler androidUIHandler;
   private final Activity activity;
-
-  private final OkHttpClient httpClient;
+  private final Gson gson;
 
   private String endpointURL;
-  private ApolloClient gqlClient;
 
   /**
    * Creates a new GraphQL component.
@@ -54,8 +69,10 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
 
     this.androidUIHandler = new Handler();
     this.activity = container.$context();
+    this.gson = new Gson();
 
-    this.httpClient = new OkHttpClient();
+    // Log creation of component.
+    Log.d(LOG_TAG, "Created GraphQL component.");
   }
 
   /**
@@ -77,107 +94,175 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
   @SimpleProperty(description = "Sets the URL for this GraphQL endpoint.")
-  public void GqlEndpointUrl(String gqlUrl) {
+  public void GqlEndpointUrl(final String gqlUrl) {
     endpointURL = gqlUrl;
 
-    // Create a new GraphQL client on the endpoint URL.
-    gqlClient = ApolloClient.builder()
-        .serverUrl(endpointURL)
-        .okHttpClient(httpClient)
+    // Log URL change.
+    Log.d(LOG_TAG, "Endpoint URL changed to " + gqlUrl + ".");
+  }
+
+  /**
+   * Triggers an event indicating that the given operation has successfully executed and returned data. This method
+   * should be executed in the application's main thread.
+   *
+   * @param gqlOperationName the operation name associated with this event.
+   * @param gqlResponse      a non-empty response map containing data from executing the associated query.
+   */
+  @SimpleEvent(description = "Event triggered by \"Query\" methods.")
+  public void GqlGotResponse(final String gqlOperationName, final Map<String, Object> gqlResponse) {
+    assert gqlResponse.size() > 0;
+    EventDispatcher.dispatchEvent(this, "GqlGotResponse", gqlOperationName, gqlResponse);
+
+    // Log event dispatch.
+    Log.d(LOG_TAG, "Dispatched response event for " + gqlOperationName + ".");
+  }
+
+  /**
+   * Triggers an event indicating that there were one or more errors when executing the query. This method should be
+   * executed in the application's main thread.
+   *
+   * @param gqlOperationName the operation name associated with this event.
+   * @param gqlError         a list of error messages, which must be non-empty.
+   */
+  @SimpleEvent(description = "Indicates that the GraphQL endpoint responded with an error.")
+  public void GqlGotError(final String gqlOperationName, final List<String> gqlError) {
+    assert gqlError.size() > 0;
+    EventDispatcher.dispatchEvent(this, "GqlGotError", gqlOperationName, gqlError);
+
+    // Log event dispatch.
+    Log.d(LOG_TAG, "Dispatched error event for " + gqlOperationName + ".");
+  }
+
+  /**
+   * Executes an arbitrary query against the GraphQL endpoint.
+   *
+   * @param gqlOperationName the operation name for this query.
+   * @param gqlQuery         the query string to execute.
+   */
+  @SimpleFunction(description = "Execute a GraphQL query against the endpoint.")
+  public void GqlQuery(final String gqlOperationName, final String gqlQuery) {
+    // Construct the request and callback handler.
+    final Request request = buildRequest(gqlQuery, gqlOperationName, null);
+    final GqlCallback callback = new GqlCallback(gqlOperationName);
+
+    // Asynchronously execute request.
+    CLIENT.newCall(request).enqueue(callback);
+
+    // Log query request.
+    Log.d(LOG_TAG, "Query for " + gqlOperationName + " has been enqueued.");
+  }
+
+  /**
+   * Builds a new request from the input query.
+   *
+   * @param query         the input query string.
+   * @param operationName the operation name of the query, which can be null.
+   * @param variables     the variables associated with this query, which can be null.
+   * @return a new request ready for execution.
+   */
+  private Request buildRequest(final String query, final String operationName, final Map<String, Object> variables) {
+    // Construct the GraphQL query in standard JSON format.
+    final Map<String, Object> queryBody = new HashMap<String, Object>();
+    queryBody.put("query", query);
+    queryBody.put("operationName", operationName);
+    queryBody.put("variables", variables);
+
+    // Construct the request body with the JSON media type.
+    final RequestBody body = RequestBody.create(JSON_CONTENT_TYPE, gson.toJson(queryBody));
+
+    // Build the request from the current endpoint URL and request body.
+    return new Request.Builder()
+        .url(endpointURL)
+        .post(body)
         .build();
   }
 
-  @SimpleEvent(description = "Event triggered by \"Query\" or \"Mutate\" methods.")
-  public void GqlGotResponse(String gqlOperationName, String gqlResponse) {
-    EventDispatcher.dispatchEvent(this, "GqlGotResponse", gqlOperationName, gqlResponse);
-  }
-
-  @SimpleEvent(description = "Indicates that the GraphQL endpoint responded with an error.")
-  public void GqlGotError(String gqlError) {
-    EventDispatcher.dispatchEvent(this, "GqlGotError", gqlError);
-  }
-
-  @SimpleFunction(description = "Execute a GraphQL query against the endpoint.")
-  public void GqlQuery(String gqlOperationName, String gqlQuery) {
-  }
-
-  @SimpleFunction(description = "Execute a GraphQL mutation against the endpoint.")
-  public void GqlMutate(String gqlOperationName, String gqlMutation) {
-  }
-
-  private static class BasicMutation implements Mutation<Operation.Data, Object, Operation.Variables> {
-
+  /**
+   * A helper class to handle GraphQL callbacks by triggering the appropriate events.
+   */
+  private class GqlCallback implements Callback {
     private final String operationName;
 
-    public BasicMutation(String operationName) {
+    /**
+     * Creates a new callback instance.
+     *
+     * @param operationName the operation name associated with this callback.
+     */
+    public GqlCallback(final String operationName) {
       this.operationName = operationName;
     }
 
     @Override
-    public String queryDocument() {
-      return null;
+    public void onFailure(final Call call, final IOException e) {
+      // Create a list consisting of the single exception message.
+      final List<String> errorMessages = Collections.singletonList(e.getMessage());
+
+      // Post the error message on the application's main UI thread.
+      androidUIHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          GqlGotError(operationName, errorMessages);
+        }
+      });
     }
 
     @Override
-    public Variables variables() {
-      return null;
-    }
+    public void onResponse(final Call call, final Response response) throws IOException {
+      // Get the response string.
+      assert response.body() != null;
+      final String responseString = response.body().string();
 
-    @Override
-    public ResponseFieldMapper<Data> responseFieldMapper() {
-      return null;
-    }
+      // Parse the response JSON into a known format for further processing.
+      final GqlResponse responseMap = gson.fromJson(responseString, GqlResponse.class);
 
-    @Override
-    public Object wrapData(Data data) {
-      return null;
-    }
+      // If there were errors, trigger the appropriate event to inform the user.
+      if (responseMap.errors != null) {
+        // Construct a list of error messages.
+        final List<String> errorMessages = new ArrayList<String>();
+        for (final GqlError error : responseMap.errors) {
+          errorMessages.add(error.message);
+        }
 
-    @NotNull
-    @Override
-    public OperationName name() {
-      return null;
-    }
+        // Post errors on the application's main UI thread.
+        androidUIHandler.post(new Runnable() {
+          @Override
+          public void run() {
+            GqlGotError(operationName, errorMessages);
+          }
+        });
+      }
 
-    @NotNull
-    @Override
-    public String operationId() {
-      return null;
+      // If there were data entries, trigger the appropriate event. Note that we do not distinguish between
+      if (responseMap.data != null) {
+        // Extract data from response.
+        final Map<String, Object> data = responseMap.data;
+
+        // Post data on the application's main UI thread.
+        androidUIHandler.post(new Runnable() {
+          @Override
+          public void run() {
+            GqlGotResponse(operationName, data);
+          }
+        });
+      }
+
+      // We are done processing the response, so close it.
+      response.close();
     }
   }
 
-  private static class BasicQuery implements Query<Operation.Data, Object, Operation.Variables> {
+  /**
+   * A data class representing a GraphQL response.
+   */
+  private static class GqlResponse {
+    public List<GqlError> errors;
+    public Map<String, Object> data;
+  }
 
-    @Override
-    public String queryDocument() {
-      return null;
-    }
-
-    @Override
-    public Variables variables() {
-      return null;
-    }
-
-    @Override
-    public ResponseFieldMapper<Data> responseFieldMapper() {
-      return null;
-    }
-
-    @Override
-    public Object wrapData(Data data) {
-      return null;
-    }
-
-    @NotNull
-    @Override
-    public OperationName name() {
-      return null;
-    }
-
-    @NotNull
-    @Override
-    public String operationId() {
-      return null;
-    }
+  /**
+   * A data class representing an error message. Note that fields aside from the message are dropped.
+   */
+  private static class GqlError {
+    public String message;
   }
 }

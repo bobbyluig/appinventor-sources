@@ -171,17 +171,14 @@
         <pathelement location="${lib.dir}/oauth/google-oauth-client-1.10.1-beta.jar" />
         <pathelement location="${lib.dir}/jedis/jedis-3.0.0-SNAPSHOT-jar-with-dependencies.jar" />
         <pathelement location="${lib.dir}/commons-pool/commons-pool2-2.0.jar" />
-        <pathelement location="${lib.dir}/gson/gson-2.1.jar" />
+        <pathelement location="${lib.dir}/gson/gson-2.8.5.jar" />
         <pathelement location="${lib.dir}/json/json.jar" />
         <pathelement location="${lib.dir}/osmdroid/osmdroid-5.6.6.jar" />
         <pathelement location="${lib.dir}/jts/jts-core-1.15.0-20170823.040415-301.jar" />
         <pathelement location="${lib.dir}/androidsvg/androidsvg-d4ec6d8.jar" />
 
-        <pathelement location="${lib.dir}/apollo-android/apollo-runtime-1.0.1-SNAPSHOT.jar" />
-        <pathelement location="${lib.dir}/apollo-android/apollo-api-1.0.1-SNAPSHOT.jar" />
-        <pathelement location="${lib.dir}/apollo-android/okhttp-3.8.1.jar" />
-        <pathelement location="${lib.dir}/apollo-android/okio-1.13.0.jar" />
-        <pathelement location="${lib.dir}/apollo-android/annotations-13.0.jar" />
+        <pathelement location="${lib.dir}/ok/okhttp-3.11.0.jar" />
+        <pathelement location="${lib.dir}/ok/okio-2.1.0.jar" />
 
       </classpath>
     </ai.javac>
@@ -289,7 +286,7 @@
           <pathelement location="${lib.dir}/android/android-26/android.jar" />
           <path refid="AndroidSupportLibs.path" />
           <pathelement location="${lib.dir}/guava/guava-14.0.1.jar" />
-          <pathelement location="${lib.dir}/gson/gson-2.1.jar" />
+          <pathelement location="${lib.dir}/gson/gson-2.8.5.jar" />
           <pathelement location="${lib.dir}/json/json.jar" />
           <pathelement location="${lib.dir}/kawa/kawa-1.11-modified.jar" />
           <pathelement location="${lib.dir}/acra/acra-4.4.0.jar" />
@@ -312,11 +309,8 @@
           <pathelement location="${lib.dir}/jts/jts-core-1.15.0-20170823.040415-301.jar" />
           <pathelement location="${lib.dir}/androidsvg/androidsvg-d4ec6d8.jar" />
 
-          <pathelement location="${lib.dir}/apollo-android/apollo-runtime-1.0.1-SNAPSHOT.jar" />
-          <pathelement location="${lib.dir}/apollo-android/apollo-api-1.0.1-SNAPSHOT.jar" />
-          <pathelement location="${lib.dir}/apollo-android/okhttp-3.8.1.jar" />
-          <pathelement location="${lib.dir}/apollo-android/okio-1.13.0.jar" />
-          <pathelement location="${lib.dir}/apollo-android/annotations-13.0.jar" />
+          <pathelement location="${lib.dir}/ok/okhttp-3.11.0.jar" />
+          <pathelement location="${lib.dir}/ok/okio-2.1.0.jar" />
 
         </classpath>
         <compilerarg line="-processorpath ${local.build.dir}/AnnotationProcessors.jar"/>
