@@ -1491,6 +1491,11 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       return "list";
     }
 
+    // Map<?> -> map
+    if (type.startsWith("java.util.Map")) {
+      return "map";
+    }
+
     // Calendar -> InstantInTime
     if (type.equals("java.util.Calendar")) {
       return "InstantInTime";

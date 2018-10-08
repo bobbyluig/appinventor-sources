@@ -7077,17 +7077,9 @@ public interface OdeMessages extends Messages {
   @Description("")
   String GqlQueryMethods();
 
-  @DefaultMessage("Mutate")
-  @Description("")
-  String GqlMutateMethods();
-
   @DefaultMessage("query")
   @Description("")
   String gqlQueryParams();
-
-  @DefaultMessage("mutation")
-  @Description("")
-  String gqlMutationParams();
 
   @DefaultMessage("operationName")
   @Description("")
