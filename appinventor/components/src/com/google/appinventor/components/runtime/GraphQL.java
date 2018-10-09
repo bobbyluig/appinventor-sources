@@ -108,7 +108,7 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
    * @param gqlQueryName the query name associated with this event.
    * @param gqlResponse  a non-empty response map containing data from executing the associated query.
    */
-  @SimpleEvent(description = "Event triggered by \"Query\" methods.")
+  @SimpleEvent(description = "Event triggered by the \"Query\" method.")
   public void GqlGotResponse(final String gqlQueryName, final Map<String, Object> gqlResponse) {
     assert gqlResponse.size() > 0;
     EventDispatcher.dispatchEvent(this, "GqlGotResponse", gqlQueryName, gqlResponse);
