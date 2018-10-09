@@ -7137,9 +7137,9 @@ public interface OdeMessages extends Messages {
   @Description("")
   String gqlQueryParams();
 
-  @DefaultMessage("operationName")
+  @DefaultMessage("queryName")
   @Description("")
-  String gqlOperationNameParams();
+  String gqlQueryNameParams();
 
   @DefaultMessage("response")
   @Description("")

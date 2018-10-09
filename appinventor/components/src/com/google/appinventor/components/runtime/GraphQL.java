@@ -105,51 +105,51 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
    * Triggers an event indicating that the given operation has successfully executed and returned data. This method
    * should be executed in the application's main thread.
    *
-   * @param gqlOperationName the operation name associated with this event.
-   * @param gqlResponse      a non-empty response map containing data from executing the associated query.
+   * @param gqlQueryName the query name associated with this event.
+   * @param gqlResponse  a non-empty response map containing data from executing the associated query.
    */
   @SimpleEvent(description = "Event triggered by \"Query\" methods.")
-  public void GqlGotResponse(final String gqlOperationName, final Map<String, Object> gqlResponse) {
+  public void GqlGotResponse(final String gqlQueryName, final Map<String, Object> gqlResponse) {
     assert gqlResponse.size() > 0;
-    EventDispatcher.dispatchEvent(this, "GqlGotResponse", gqlOperationName, gqlResponse);
+    EventDispatcher.dispatchEvent(this, "GqlGotResponse", gqlQueryName, gqlResponse);
 
     // Log event dispatch.
-    Log.d(LOG_TAG, "Dispatched response event for " + gqlOperationName + ".");
+    Log.d(LOG_TAG, "Dispatched response event for " + gqlQueryName + ".");
   }
 
   /**
    * Triggers an event indicating that there were one or more errors when executing the query. This method should be
    * executed in the application's main thread.
    *
-   * @param gqlOperationName the operation name associated with this event.
-   * @param gqlError         a list of error messages, which must be non-empty.
+   * @param gqlQueryName the query name associated with this event.
+   * @param gqlError     a list of error messages, which must be non-empty.
    */
   @SimpleEvent(description = "Indicates that the GraphQL endpoint responded with an error.")
-  public void GqlGotError(final String gqlOperationName, final List<String> gqlError) {
+  public void GqlGotError(final String gqlQueryName, final List<String> gqlError) {
     assert gqlError.size() > 0;
-    EventDispatcher.dispatchEvent(this, "GqlGotError", gqlOperationName, gqlError);
+    EventDispatcher.dispatchEvent(this, "GqlGotError", gqlQueryName, gqlError);
 
     // Log event dispatch.
-    Log.d(LOG_TAG, "Dispatched error event for " + gqlOperationName + ".");
+    Log.d(LOG_TAG, "Dispatched error event for " + gqlQueryName + ".");
   }
 
   /**
    * Executes an arbitrary query against the GraphQL endpoint.
    *
-   * @param gqlOperationName the operation name for this query.
-   * @param gqlQuery         the query string to execute.
+   * @param gqlQueryName the name for this query.
+   * @param gqlQuery     the query string to execute.
    */
   @SimpleFunction(description = "Execute a GraphQL query against the endpoint.")
-  public void GqlQuery(final String gqlOperationName, final String gqlQuery) {
+  public void GqlQuery(final String gqlQueryName, final String gqlQuery) {
     // Construct the request and callback handler.
-    final Request request = buildRequest(gqlQuery, gqlOperationName, null);
-    final GqlCallback callback = new GqlCallback(gqlOperationName);
+    final Request request = buildRequest(gqlQuery, null, null);
+    final GqlCallback callback = new GqlCallback(gqlQueryName);
 
     // Asynchronously execute request.
     CLIENT.newCall(request).enqueue(callback);
 
     // Log query request.
-    Log.d(LOG_TAG, "Query for " + gqlOperationName + " has been enqueued.");
+    Log.d(LOG_TAG, "Query for " + gqlQueryName + " has been enqueued.");
   }
 
   /**
@@ -167,6 +167,9 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
     queryBody.put("operationName", operationName);
     queryBody.put("variables", variables);
 
+    // Log query.
+    Log.d(LOG_TAG, "Building query " + queryBody + ".");
+
     // Construct the request body with the JSON media type.
     final RequestBody body = RequestBody.create(JSON_CONTENT_TYPE, gson.toJson(queryBody));
 
@@ -181,15 +184,15 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
    * A helper class to handle GraphQL callbacks by triggering the appropriate events.
    */
   private class GqlCallback implements Callback {
-    private final String operationName;
+    private final String queryName;
 
     /**
      * Creates a new callback instance.
      *
-     * @param operationName the operation name associated with this callback.
+     * @param queryName the query name associated with this callback.
      */
-    public GqlCallback(final String operationName) {
-      this.operationName = operationName;
+    public GqlCallback(final String queryName) {
+      this.queryName = queryName;
     }
 
     @Override
@@ -201,7 +204,7 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
       androidUIHandler.post(new Runnable() {
         @Override
         public void run() {
-          GqlGotError(operationName, errorMessages);
+          GqlGotError(queryName, errorMessages);
         }
       });
     }
@@ -227,7 +230,7 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
         androidUIHandler.post(new Runnable() {
           @Override
           public void run() {
-            GqlGotError(operationName, errorMessages);
+            GqlGotError(queryName, errorMessages);
           }
         });
       }
@@ -241,7 +244,7 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
         androidUIHandler.post(new Runnable() {
           @Override
           public void run() {
-            GqlGotResponse(operationName, data);
+            GqlGotResponse(queryName, data);
           }
         });
       }
