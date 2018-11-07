@@ -370,12 +370,25 @@ Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
     block.setAttribute('type', 'gql');
     xml.appendChild(block);
 
+    // Get field type.
+    var fieldType = field.type;
+
+    // Traverse type until we reach a base type.
+    while (fieldType.kind === 'LIST' || fieldType.kind === 'NON_NULL') {
+      fieldType = fieldType.ofType;
+    }
+
     // Create a new mutation.
     var mutation = document.createElement('mutation');
     mutation.setAttribute('gql_url', this.gqlUrl);
-    mutation.setAttribute('gql_type', this.gqlType);
+    mutation.setAttribute('gql_type', fieldType.name);
     mutation.setAttribute('gql_name', field.name);
     block.appendChild(mutation);
+
+    // If the field is an object, set its fields to 1.
+    if (fieldType.kind === 'OBJECT') {
+      mutation.setAttribute('gql_fields', '1');
+    }
 
     // Add parameters into the mutation.
     for (var j = 0, arg; arg = field.args[j]; j++) {
@@ -385,7 +398,7 @@ Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
       var parameterType = arg.type;
 
       // Traverse type until we reach a base type.
-      while (parameterType.kind === 'LIST' || parameterType.kind === 'NOT_NULL') {
+      while (parameterType.kind === 'LIST' || parameterType.kind === 'NON_NULL') {
         parameterType = parameterType.ofType;
       }
 
