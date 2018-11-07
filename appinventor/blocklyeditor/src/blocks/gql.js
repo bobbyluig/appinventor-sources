@@ -2,6 +2,7 @@
 //
 // goog.provide('AI.Blockly.Blocks.gql');
 // goog.provide('AI.Blockly.GraphQL');
+// goog.require('AI.Blockly.FieldFlydown');
 // goog.require('Blockly.Blocks.Utilities');
 // goog.require('goog.net.XhrIo');
 
@@ -134,8 +135,60 @@ Blockly.GraphQLBlock.updateSchema = function(endpoint) {
 
     // Modify the old type objects and add them to new types.
     for (var i = 0, type; type = schema.types[i]; i++) {
+      // Extract the type name as the key.
       var typeName = type['name'];
+      delete type['name'];
+
+      // Set the modified type object under the type name.
       newTypes[typeName] = type;
+
+      // Create a field mapping for fast name lookup.
+      var newFields = {};
+
+      // Determine if there are any fields.
+      if (type['fields'] !== null) {
+        // Modify the old field objects and add them to new fields.
+        for (var j = 0, field; field = type.fields[j]; j++) {
+          // Extract the field name as the key.
+          var fieldName = field['name'];
+          delete field['name'];
+
+          // Set the modified field object under the field name.
+          newFields[fieldName] = field;
+        }
+      }
+
+      // Replace the old fields with the new fields.
+      type['fields'] = newFields;
+    }
+
+    // Add the special schema root type.
+    newTypes[''] = {
+      'fields': {}
+    };
+
+    // If there is a query type, add it to the root fields.
+    if (schema['queryType'] !== null) {
+      newTypes['']['fields']['query'] = {
+        'args': [],
+        'description': 'A GraphQL query.',
+        'type': {
+          'kind': 'OBJECT',
+          'name': schema['queryType']['name']
+        }
+      };
+    }
+
+    // If there is a mutation type, add it to the root fields.
+    if (schema['mutationType'] !== null) {
+      newTypes['']['fields']['mutation'] = {
+        'args': [],
+        'description': 'A GraphQL mutation.',
+        'type': {
+          'kind': 'OBJECT',
+          'name': schema['mutationType']['name']
+        }
+      };
     }
 
     // Replace the old types with the new types.
@@ -198,7 +251,7 @@ Blockly.Blocks['gql'] = {
     // Set basic attributes for this block shared by all GraphQL blocks.
     mutation.setAttribute('gql_url', this.gqlUrl);
     mutation.setAttribute('gql_name', this.gqlName);
-    mutation.setAttribute('gql_type', this.gqlType);
+    mutation.setAttribute('gql_parent_type', this.gqlParentType);
 
     // If this block is not a scalar, store its field count.
     if (this.gqlIsObject) {
@@ -224,7 +277,7 @@ Blockly.Blocks['gql'] = {
     // Extract basic mutation attributes shared by all GraphQL blocks.
     this.gqlUrl = xmlElement.getAttribute('gql_url');
     this.gqlName = xmlElement.getAttribute('gql_name');
-    this.gqlType = xmlElement.getAttribute('gql_type');
+    this.gqlParentType = xmlElement.getAttribute('gql_parent_type');
 
     // Determine whether the block is an object or a scalar.
     this.gqlIsObject = xmlElement.hasAttribute('gql_fields');
@@ -241,9 +294,6 @@ Blockly.Blocks['gql'] = {
       });
     }
 
-    // Store the type prefix of this block. Note that encoding the URL guarantees that there will be no spaces.
-    this.gqlTypePrefix = encodeURI(this.gqlUrl) + ' ';
-
     // Set the color of the block to a beautiful GraphQL pink.
     this.setColour(Blockly.GraphQLBlock.PRIMARY_COLOR);
 
@@ -259,8 +309,12 @@ Blockly.Blocks['gql'] = {
         .setCheck(['String']);
     }
 
-    // All GraphQL blocks have outputs with a return type that encapsulates their endpoint.
-    this.setOutput(true, this.gqlTypePrefix + this.gqlName);
+    // The return type of a block encapsulates its endpoint, its parent type, and its own field name.
+    if (!!this.gqlParentType) {
+      this.setOutput(true, encodeURI(this.gqlUrl) + ' ' + this.gqlName);
+    } else {
+      this.setOutput(true, encodeURI(this.gqlUrl) + ' ' + this.gqlParentType + ' ' + this.gqlName);
+    }
 
     // For non-scalar blocks, users should be able add and remove fields.
     if (this.gqlIsObject) {
@@ -309,18 +363,38 @@ Blockly.Blocks['gql'] = {
     // Fetch the schema.
     var schema = Blockly.GraphQLBlock.schemas[this.gqlUrl];
 
-    // Perform type existence check.
-    if (!schema.types.hasOwnProperty(this.gqlType)) {
-      console.log("The type " + this.gqlType + " no longer exists.");
+    // Perform parent type existence check.
+    if (!schema.types.hasOwnProperty(this.gqlParentType)) {
+      console.log('The type "' + this.gqlParentType + '" no longer exists.');
       return;
     }
 
-    // Get the type.
+    // Get the parent type.
+    var parentType = schema.types[this.gqlParentType];
+
+    // Perform field existence check.
+    if (!parentType.fields.hasOwnProperty(this.gqlName)) {
+      console.log('The field "' + this.gqlName + '" no longer exists for the type "' + this.gqlParentType + '".');
+      return;
+    }
+
+    // Get own type, which must exist relative to parent assuming that the schema is well-formed.
+    var typeRef = parentType.fields[this.gqlName].type;
+
+    // Traverse type until we reach a base type.
+    while (typeRef.kind === 'LIST' || typeRef.kind === 'NON_NULL') {
+      typeRef = typeRef.ofType;
+    }
+
+    // Set the type name.
+    this.gqlType = typeRef.name;
+
+    // Fetch the actual type object associated with this block's GraphQL type.
     var type = schema.types[this.gqlType];
 
     // Perform object/scalar type check.
-    if (type.kind === 'OBJECT' && !this.gqlIsObject || this.kind === 'SCALAR' && this.gqlIsObject) {
-      console.log("Scalar/object mismatch.");
+    if (type.kind === 'OBJECT' && !this.gqlIsObject || type.kind === 'SCALAR' && this.gqlIsObject) {
+      console.log('Scalar/object mismatch.');
       return;
     }
 
@@ -329,19 +403,24 @@ Blockly.Blocks['gql'] = {
 
     // If we are an object, enable field autocompletion.
     if (this.gqlIsObject) {
+      var gqlFlydown = new Blockly.GqlFlydown(this.gqlName, this.gqlUrl, this.gqlType);
       titleInput.removeField('GQL_TITLE_FIELD');
-      titleInput.appendField(new Blockly.GqlFlydown(this.gqlName, this.gqlUrl, this.gqlType), 'GQL_TITLE_FIELD');
+      titleInput.appendField(gqlFlydown, 'GQL_TITLE_FIELD');
     }
 
-    // Update description.
-    this.setTooltip(type.description);
+    // Fetch the description from the parent type information.
+    var description = parentType.fields[this.gqlName].description;
+
+    // Update description if available.
+    if (description !== null) {
+      this.setTooltip(description);
+    }
 
     // TODO(bobbyluig): Do type checks on parameter here.
     // TODO(bobbyluig): Update parameters and parameter types here.
+    // TODO(bobbyluig): Do type checks on fields here.
   }
 };
-
-goog.require('AI.Blockly.FieldFlydown');
 
 Blockly.GqlFlydown = function(name, gqlUrl, gqlType) {
   this.gqlUrl = gqlUrl;
@@ -363,12 +442,18 @@ Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
   // Create a new root element.
   var xml = document.createElement('xml');
 
+  // Get all fields for the type.
+  var allFields = Object.keys(type.fields);
+
   // Go through all fields for the type.
-  for (var i = 0, field; field = type.fields[i]; i++) {
+  for (var i = 0, fieldName; fieldName = allFields[i]; i++) {
     // Create a new block.
     var block = document.createElement('block');
     block.setAttribute('type', 'gql');
     xml.appendChild(block);
+
+    // Get the field.
+    var field = type.fields[fieldName];
 
     // Get field type.
     var fieldType = field.type;
@@ -381,8 +466,8 @@ Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
     // Create a new mutation.
     var mutation = document.createElement('mutation');
     mutation.setAttribute('gql_url', this.gqlUrl);
-    mutation.setAttribute('gql_type', fieldType.name);
-    mutation.setAttribute('gql_name', field.name);
+    mutation.setAttribute('gql_parent_type', this.gqlType);
+    mutation.setAttribute('gql_name', fieldName);
     block.appendChild(mutation);
 
     // If the field is an object, set its fields to 1.
@@ -413,26 +498,12 @@ Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
 
   // Return the string representation of the element.
   return xml.outerHTML;
-
-  // TODO(bobbyluig): Handle interfaces.
-  var xml = '<xml>\n' +
-    '    <block type="gql">\n' +
-    '        <mutation gql_url="https://graphql-pokemon.now.sh/" gql_name="person" gql_type="Person" gql_fields="1">\n' +
-    '            <gql_parameter gql_name="id" gql_type="ID"/>\n' +
-    '            <gql_parameter gql_name="personID" gql_type="ID"/>\n' +
-    '        </mutation>\n' +
-    '    </block>\n' +
-    '    <block type="gql">\n' +
-    '        <mutation gql_url="https://graphql-pokemon.now.sh/" gql_name="name" gql_type="String"></mutation>\n' +
-    '    </block>\n' +
-    '</xml>';
-  return xml;
 };
 
 
 var xmlText = '<xml>\n' +
   '    <block type="gql">\n' +
-  '        <mutation gql_url="https://graphql-pokemon.now.sh/" gql_name="pokemon" gql_type="Pokemon" gql_fields="1">\n' +
+  '        <mutation gql_url="https://graphql-pokemon.now.sh/" gql_name="pokemon" gql_parent_type="Query" gql_fields="1">\n' +
   '            <gql_parameter gql_name="id" gql_type="ID"/>\n' +
   '            <gql_parameter gql_name="personID" gql_type="ID"/>\n' +
   '        </mutation>\n' +
