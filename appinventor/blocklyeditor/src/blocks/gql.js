@@ -1,10 +1,10 @@
-// 'use strict';
-//
-// goog.provide('AI.Blockly.Blocks.gql');
-// goog.provide('AI.Blockly.GraphQL');
-// goog.require('AI.Blockly.FieldFlydown');
-// goog.require('Blockly.Blocks.Utilities');
-// goog.require('goog.net.XhrIo');
+'use strict';
+
+goog.provide('AI.Blockly.Blocks.gql');
+goog.provide('AI.Blockly.GraphQL');
+goog.require('AI.Blockly.FieldFlydown');
+goog.require('Blockly.Blocks.Utilities');
+goog.require('goog.net.XhrIo');
 
 // Initialize namespace.
 Blockly.Blocks.gql = {};
@@ -91,8 +91,43 @@ Blockly.GraphQLBlock.INTROSPECTION_QUERY =
   '} ';
 // </editor-fold>
 
+// GraphQL component instances.
+Blockly.GraphQLBlock.instances = {};
+
 // GraphQL introspection query cache.
 Blockly.GraphQLBlock.schemas = {};
+
+// Register an instance with an endpoint.
+Blockly.GraphQLBlock.registerInstance = function(uid, endpointUrl) {
+  // Add instance.
+  // TODO(bobbyluig): Figure out whether cleanup is necessary and if this is too hacky.
+  Blockly.GraphQLBlock.instances[uid] = endpointUrl;
+};
+
+// Generates an array of top-level blocks associated with the given instance.
+Blockly.GraphQLBlock.instanceBlocks = function(uid) {
+  // Keep track of blocks.
+  var blocks = [];
+
+  // If the instance is not registered, return.
+  if (!Blockly.GraphQLBlock.instances.hasOwnProperty(uid)) {
+    return blocks;
+  }
+
+  // Get the endpoint associated with the instance.
+  var endpoint = Blockly.GraphQLBlock.instances[uid];
+
+  // If the schema for the endpoint does not exist, return.
+  if (!Blockly.GraphQLBlock.schemas.hasOwnProperty(endpoint)) {
+    return blocks;
+  }
+
+  // Add all blocks of the root.
+  Array.prototype.push.apply(blocks, Blockly.GraphQLBlock.buildTypeBlocks(endpoint, ''));
+
+  // Return the list of blocks.
+  return blocks;
+};
 
 // Traverses a type reference to get the base type.
 Blockly.GraphQLBlock.traverseTypeRef = function(typeRef) {
@@ -106,7 +141,12 @@ Blockly.GraphQLBlock.traverseTypeRef = function(typeRef) {
 };
 
 // Creates a list of block elements from a given type.
-Blockly.GraphQLBlock.buildTypeBlocks = function(type) {
+Blockly.GraphQLBlock.buildTypeBlocks = function(gqlUrl, gqlType) {
+  // Fetch the associated type.
+  var schema = Blockly.GraphQLBlock.schemas[gqlUrl];
+  var type = schema.types[gqlType];
+
+  // Create an array to store blocks.
   var blocks = [];
 
   // Get all fields for the type.
@@ -127,8 +167,8 @@ Blockly.GraphQLBlock.buildTypeBlocks = function(type) {
 
     // Create a new mutation.
     var mutation = document.createElement('mutation');
-    mutation.setAttribute('gql_url', this.gqlUrl);
-    mutation.setAttribute('gql_parent_type', this.gqlType);
+    mutation.setAttribute('gql_url', gqlUrl);
+    mutation.setAttribute('gql_parent_type', gqlType);
     mutation.setAttribute('gql_name', fieldName);
     block.appendChild(mutation);
 
@@ -372,12 +412,18 @@ Blockly.Blocks['gql'] = {
         .setCheck(['String']);
     }
 
+    // Default to inline inputs.
+    // this.setInputsInline(true);
+
     // The return type of a block encapsulates its endpoint, its parent type, and its own field name.
-    if (!!this.gqlParentType) {
-      this.setOutput(true, encodeURI(this.gqlUrl) + ' ' + this.gqlName);
-    } else {
-      this.setOutput(true, encodeURI(this.gqlUrl) + ' ' + this.gqlParentType + ' ' + this.gqlName);
-    }
+    this.setOutput(['String']);
+
+    // TODO(bobbyluig): Set output to proper type.
+    // if (!!this.gqlParentType) {
+    //   this.setOutput(true, encodeURI(this.gqlUrl) + ' ' + this.gqlName);
+    // } else {
+    //   this.setOutput(true, encodeURI(this.gqlUrl) + ' ' + this.gqlParentType + ' ' + this.gqlName);
+    // }
 
     // For non-scalar blocks, users should be able add and remove fields.
     if (this.gqlIsObject) {
@@ -494,15 +540,11 @@ Blockly.GqlFlydown.prototype.fieldCSSClassName = 'blocklyGqlField';
 Blockly.GqlFlydown.prototype.flyoutCSSClassName = 'blocklyGqlFlydown';
 
 Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
-  // Fetch the associated type.
-  var schema = Blockly.GraphQLBlock.schemas[this.gqlUrl];
-  var type = schema.types[this.gqlType];
-
   // Create a new root element.
   var xml = document.createElement('xml');
 
   // Get all blocks.
-  var blocks = Blockly.GraphQLBlock.buildTypeBlocks(type);
+  var blocks = Blockly.GraphQLBlock.buildTypeBlocks(this.gqlUrl, this.gqlType);
 
   // Add all blocks to the root.
   for (var i = 0, block; block = blocks[i]; i++) {
@@ -514,19 +556,20 @@ Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
 };
 
 
-var xmlText = '<xml>\n' +
-  '    <block type="gql">\n' +
-  '        <mutation gql_url="https://graphql-pokemon.now.sh/" gql_name="pokemon" gql_parent_type="Query" gql_fields="1">\n' +
-  '            <gql_parameter gql_name="id" gql_type="ID"/>\n' +
-  '            <gql_parameter gql_name="personID" gql_type="ID"/>\n' +
-  '        </mutation>\n' +
-  '    </block>\n' +
-  '</xml>';
-var xmlBlockArray = [];
-var xml = Blockly.Xml.textToDom(xmlText);
-var children = goog.dom.getChildren(xml);
-for (var i = 0; i < children.length; i++) {
-  xmlBlockArray.push(children[i]);
-}
-Blockly.getMainWorkspace().flyout_.show(xmlBlockArray);
+// var xmlText = '<xml>\n' +
+//   '    <block type="gql">\n' +
+//   '        <mutation gql_url="https://graphql-pokemon.now.sh/" gql_name="pokemon" gql_parent_type="Query" gql_fields="1">\n' +
+//   '            <gql_parameter gql_name="id" gql_type="ID"/>\n' +
+//   '            <gql_parameter gql_name="personID" gql_type="ID"/>\n' +
+//   '        </mutation>\n' +
+//   '    </block>\n' +
+//   '</xml>';
+// var xmlBlockArray = [];
+// var xml = Blockly.Xml.textToDom(xmlText);
+// var children = goog.dom.getChildren(xml);
+// for (var i = 0; i < children.length; i++) {
+//   xmlBlockArray.push(children[i]);
+// }
+
+// Blockly.getMainWorkspace().flyout_.show(xmlBlockArray);
 // Blockly.GraphQLBlock.updateSchema('https://graphql-pokemon.now.sh/')
