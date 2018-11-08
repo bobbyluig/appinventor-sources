@@ -35,7 +35,8 @@ Blockly.PROPERTY_READWRITEABLE = 3;
  * @property {Object.<string, Object<string, string>>} blockProperties
  * @property {Object.<string, MethodDescriptor>} methods
  */
-ComponentInfo = function() {};
+ComponentInfo = function() {
+};
 
 /**
  * @typedef ParameterDescriptor
@@ -43,17 +44,20 @@ ComponentInfo = function() {};
  * @property {!string} name
  * @property {!type} type
  */
-ParameterDescriptor = function() {};
+ParameterDescriptor = function() {
+};
 
 /**
  * @typedef {{name: !string, description: !string, deprecated: ?boolean, parameters: !ParameterDescriptor[]}}
  */
-EventDescriptor = function() {};
+EventDescriptor = function() {
+};
 
 /**
  * @typedef {{name: !string, description: !string, deprecated: ?boolean, parameters: !ParameterDescriptor[], returnType: ?string}}
  */
-MethodDescriptor = function() {};
+MethodDescriptor = function() {
+};
 
 /**
  * @typedef PropertyDescriptor
@@ -64,7 +68,8 @@ MethodDescriptor = function() {};
  * @property {!string} rw
  * @property {?boolean} deprecated
  */
-PropertyDescriptor = function() {};
+PropertyDescriptor = function() {
+};
 
 /**
  * @typedef ComponentTypeDescriptor
@@ -78,7 +83,8 @@ PropertyDescriptor = function() {};
  * @property {!string[]} setPropertyList
  * @property {!string[]} getPropertyList
  */
-ComponentTypeDescriptor = function() {};
+ComponentTypeDescriptor = function() {
+};
 
 /**
  * @typedef ComponentInstanceDescriptor
@@ -86,7 +92,8 @@ ComponentTypeDescriptor = function() {};
  * @property {!string} name
  * @property {!string} typeName
  */
-ComponentInstanceDescriptor = function() {};
+ComponentInstanceDescriptor = function() {
+};
 
 /**
  * Database for component type information and instances.
@@ -250,6 +257,20 @@ Blockly.ComponentDatabase.prototype.getComponentUidNameMapByType = function(comp
     }
   }
   return componentNameArray;
+};
+
+/**
+ * Obtain the uid for a given component name.
+ *
+ * @param {!string} instanceName The component instance's name.
+ * @returns {string|boolean} The UUID of the component instance if it exists, otherwise false.
+ */
+Blockly.ComponentDatabase.prototype.getUidForName = function(instanceName) {
+  if (instanceName in this.instanceNameUid_) {
+    return this.instanceNameUid_[instanceName];
+  }
+
+  return false;
 };
 
 /**
