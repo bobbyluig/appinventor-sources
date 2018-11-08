@@ -94,6 +94,69 @@ Blockly.GraphQLBlock.INTROSPECTION_QUERY =
 // GraphQL introspection query cache.
 Blockly.GraphQLBlock.schemas = {};
 
+// Traverses a type reference to get the base type.
+Blockly.GraphQLBlock.traverseTypeRef = function(typeRef) {
+  // Traverse type reference until we reach a base type.
+  while (typeRef.kind === 'LIST' || typeRef.kind === 'NON_NULL') {
+    typeRef = typeRef.ofType;
+  }
+
+  // Return the base type reference.
+  return typeRef;
+};
+
+// Creates a list of block elements from a given type.
+Blockly.GraphQLBlock.buildTypeBlocks = function(type) {
+  var blocks = [];
+
+  // Get all fields for the type.
+  var allFields = Object.keys(type.fields);
+
+  // Go through all fields for the type.
+  for (var i = 0, fieldName; fieldName = allFields[i]; i++) {
+    // Create a new block.
+    var block = document.createElement('block');
+    block.setAttribute('type', 'gql');
+    blocks.push(block);
+
+    // Get the field.
+    var field = type.fields[fieldName];
+
+    // Get field type reference.
+    var fieldTypeRef = Blockly.GraphQLBlock.traverseTypeRef(field.type);
+
+    // Create a new mutation.
+    var mutation = document.createElement('mutation');
+    mutation.setAttribute('gql_url', this.gqlUrl);
+    mutation.setAttribute('gql_parent_type', this.gqlType);
+    mutation.setAttribute('gql_name', fieldName);
+    block.appendChild(mutation);
+
+    // If the field is an object, set its fields to 1.
+    if (fieldTypeRef.kind === 'OBJECT') {
+      mutation.setAttribute('gql_fields', '1');
+    }
+
+    // Add parameters into the mutation.
+    for (var j = 0, arg; arg = field.args[j]; j++) {
+      var gqlParameter = document.createElement('gql_parameter');
+
+      // Get parameter type reference.
+      var parameterTypeRef = Blockly.GraphQLBlock.traverseTypeRef(arg.type);
+
+      // Add parameter attributes.
+      gqlParameter.setAttribute('gql_name', arg.name);
+      gqlParameter.setAttribute('gql_type', parameterTypeRef.name);
+
+      // Add parameter to mutation.
+      mutation.appendChild(gqlParameter);
+    }
+  }
+
+  // Return the block elements.
+  return blocks;
+};
+
 // Method to update cached introspection query and associated blocks.
 Blockly.GraphQLBlock.updateSchema = function(endpoint) {
   // Build post data.
@@ -212,7 +275,7 @@ Blockly.GraphQLBlock.updateSchema = function(endpoint) {
   }, 'POST', JSON.stringify(data), headers);
 };
 
-
+// The GraphQL mutator for adding and removing fields.
 Blockly.Blocks['gql_mutator'] = {
   init: function() {
     this.setColour(Blockly.GraphQLBlock.PRIMARY_COLOR);
@@ -378,13 +441,9 @@ Blockly.Blocks['gql'] = {
       return;
     }
 
-    // Get own type, which must exist relative to parent assuming that the schema is well-formed.
-    var typeRef = parentType.fields[this.gqlName].type;
-
-    // Traverse type until we reach a base type.
-    while (typeRef.kind === 'LIST' || typeRef.kind === 'NON_NULL') {
-      typeRef = typeRef.ofType;
-    }
+    // Get own type reference, which must exist relative to parent assuming that the schema is well-formed.
+    var rootTypeRef = parentType.fields[this.gqlName].type;
+    var typeRef = Blockly.GraphQLBlock.traverseTypeRef(rootTypeRef);
 
     // Set the type name.
     this.gqlType = typeRef.name;
@@ -442,58 +501,12 @@ Blockly.GqlFlydown.prototype.flydownBlocksXML_ = function() {
   // Create a new root element.
   var xml = document.createElement('xml');
 
-  // Get all fields for the type.
-  var allFields = Object.keys(type.fields);
+  // Get all blocks.
+  var blocks = Blockly.GraphQLBlock.buildTypeBlocks(type);
 
-  // Go through all fields for the type.
-  for (var i = 0, fieldName; fieldName = allFields[i]; i++) {
-    // Create a new block.
-    var block = document.createElement('block');
-    block.setAttribute('type', 'gql');
+  // Add all blocks to the root.
+  for (var i = 0, block; block = blocks[i]; i++) {
     xml.appendChild(block);
-
-    // Get the field.
-    var field = type.fields[fieldName];
-
-    // Get field type.
-    var fieldType = field.type;
-
-    // Traverse type until we reach a base type.
-    while (fieldType.kind === 'LIST' || fieldType.kind === 'NON_NULL') {
-      fieldType = fieldType.ofType;
-    }
-
-    // Create a new mutation.
-    var mutation = document.createElement('mutation');
-    mutation.setAttribute('gql_url', this.gqlUrl);
-    mutation.setAttribute('gql_parent_type', this.gqlType);
-    mutation.setAttribute('gql_name', fieldName);
-    block.appendChild(mutation);
-
-    // If the field is an object, set its fields to 1.
-    if (fieldType.kind === 'OBJECT') {
-      mutation.setAttribute('gql_fields', '1');
-    }
-
-    // Add parameters into the mutation.
-    for (var j = 0, arg; arg = field.args[j]; j++) {
-      var gqlParameter = document.createElement('gql_parameter');
-
-      // Get parameter type.
-      var parameterType = arg.type;
-
-      // Traverse type until we reach a base type.
-      while (parameterType.kind === 'LIST' || parameterType.kind === 'NON_NULL') {
-        parameterType = parameterType.ofType;
-      }
-
-      // Add parameter attributes.
-      gqlParameter.setAttribute('gql_name', arg.name);
-      gqlParameter.setAttribute('gql_type', parameterType.name);
-
-      // Add parameter to mutation.
-      mutation.appendChild(gqlParameter);
-    }
   }
 
   // Return the string representation of the element.
