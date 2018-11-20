@@ -15,8 +15,8 @@ public class MockGraphQL extends MockNonVisibleComponent {
   private static final String PROPERTY_NAME_GQL_ENDPOINT_URL = "GqlEndpointUrl";
 
   /**
-   * Creates a new instance of a non-visible component whose icon is
-   * loaded dynamically (not part of the icon image bundle)
+   * Creates a new instance of a non-visible component whose icon is loaded dynamically (not part of the icon image
+   * bundle).
    */
   public MockGraphQL(SimpleEditor editor, String type, Image iconImage) {
     super(editor, type, iconImage);
@@ -40,8 +40,9 @@ public class MockGraphQL extends MockNonVisibleComponent {
     }
   }
 
+
   /**
-   * Update the schema of this component.
+   * Updates the schema of this component.
    *
    * @param url the endpoint to use.
    */
