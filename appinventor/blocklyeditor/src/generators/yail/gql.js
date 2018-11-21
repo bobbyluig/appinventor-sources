@@ -15,15 +15,43 @@ Blockly.Yail['gql'] = function() {
   // The first item in the list is the list constructor, which is not part of the query string.
   combination.push(Blockly.Yail.YAIL_LIST_CONSTRUCTOR);
 
-  // The field name and opening bracket is the first query element.
-  combination.push(Blockly.Yail.quote_(this.gqlName + ' {\n'));
+  // The field name is the first query element.
+  combination.push(Blockly.Yail.quote_(this.gqlName));
+
+  // If there are parameters, add them.
+  if (this.gqlParameters.length > 0) {
+    // Create a list of arguments.
+    var args = [];
+
+    // Add all parameters.
+    for (var i = 0; i < this.gqlParameters.length; i++) {
+      // Default to null.
+      args.push(Blockly.Yail.valueToCode(this, 'GQL_PARAMETER' + i, Blockly.Yail.ORDER_NONE) || '"null"');
+    }
+
+    // Add to combination.
+    combination.push('"("');
+    Array.prototype.push.apply(combination, args);
+    combination.push('")"');
+  }
+
+  // Add opening bracket.
+  combination.push('" {\n"');
 
   // Add all object fields.
   for (var i = 0; i < this.itemCount_; i++) {
-    combination.push('"  "');
-    combination.push(Blockly.Yail.valueToCode(this, 'GQL_FIELD' + i, Blockly.Yail.ORDER_NONE) || '""');
-    combination.push('"\n"');
+    var objectField = Blockly.Yail.valueToCode(this, 'GQL_FIELD' + i, Blockly.Yail.ORDER_NONE);
+
+    // Only add the field if it is non-empty.
+    if (objectField) {
+      combination.push('"  "');
+      combination.push(objectField);
+      combination.push('"\n"');
+    }
   }
+
+  // Add closing bracket.
+  combination.push('}\n');
 
   // Begin generating string concatenation code.
   var code = Blockly.Yail.YAIL_CALL_YAIL_PRIMITIVE + "string-append" + Blockly.Yail.YAIL_SPACER;
