@@ -29,9 +29,21 @@ Blockly.Yail['gql'] = function() {
       args.push(Blockly.Yail.valueToCode(this, 'GQL_PARAMETER' + i, Blockly.Yail.ORDER_NONE) || '"null"');
     }
 
-    // Add to combination.
+    // Open parenthesis.
     combination.push('"("');
-    Array.prototype.push.apply(combination, args);
+
+    // Add parameter names and arguments.
+    for (var i = 0; i < args.length; i++) {
+      combination.push(Blockly.Yail.quote_(this.gqlParameters[i].gqlName + ': '));
+      combination.push(args[i]);
+
+      // Add commas in between.
+      if (i !== args.length - 1) {
+        combination.push('", "');
+      }
+    }
+
+    // Close parenthesis.
     combination.push('")"');
   }
 
@@ -51,10 +63,10 @@ Blockly.Yail['gql'] = function() {
   }
 
   // Add closing bracket.
-  combination.push('}\n');
+  combination.push('"}\n"');
 
   // Begin generating string concatenation code.
-  var code = Blockly.Yail.YAIL_CALL_YAIL_PRIMITIVE + "string-append" + Blockly.Yail.YAIL_SPACER;
+  var code = Blockly.Yail.YAIL_CALL_YAIL_PRIMITIVE + 'string-append' + Blockly.Yail.YAIL_SPACER;
 
   // Add all items in the combination.
   code += Blockly.Yail.YAIL_OPEN_COMBINATION;
@@ -64,18 +76,24 @@ Blockly.Yail['gql'] = function() {
   // Prepare to create a new combination (for type coercions).
   code += Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_QUOTE;
 
-  // Reuse the combination array by placing the text type into every entry.
-  for (var i = 0; i < this.itemCount_; i++) {
-    combination[i] = 'text';
+  // Open combination.
+  code += Blockly.Yail.YAIL_OPEN_COMBINATION;
+
+  // Place the text type for all items in combinations except for the list constructor.
+  for (var i = 0; i < combination.length - 1; i++) {
+    code += 'text';
+
+    // Add a spacer in between.
+    if (i !== combination.length - 2) {
+      code += Blockly.Yail.YAIL_SPACER;
+    }
   }
 
-  // Create a combination for text type coercions of all elements in the query.
-  code += Blockly.Yail.YAIL_OPEN_COMBINATION;
-  code += combination.join(Blockly.Yail.YAIL_SPACER);
+  // Close combination.
   code += Blockly.Yail.YAIL_CLOSE_COMBINATION;
 
   // Indicate that we are performing a join.
-  code += Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_DOUBLE_QUOTE + "join" + Blockly.Yail.YAIL_DOUBLE_QUOTE;
+  code += Blockly.Yail.YAIL_SPACER + '"join"';
 
   // Close final combination.
   code += Blockly.Yail.YAIL_CLOSE_COMBINATION;
