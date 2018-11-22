@@ -26,7 +26,7 @@ Blockly.Yail['gql'] = function() {
     // Add all parameters.
     for (var i = 0; i < this.gqlParameters.length; i++) {
       // Default to null.
-      args.push(Blockly.Yail.valueToCode(this, 'GQL_PARAMETER' + i, Blockly.Yail.ORDER_NONE) || null);
+      args.push(Blockly.Yail.valueToCode(this, 'GQL_PARAMETER' + i, Blockly.Yail.ORDER_NONE) || '"null"');
     }
 
     // Open parenthesis.
@@ -35,20 +35,7 @@ Blockly.Yail['gql'] = function() {
     // Add parameter names and arguments.
     for (var i = 0; i < args.length; i++) {
       combination.push(Blockly.Yail.quote_(this.gqlParameters[i].gqlName + ': '));
-
-      // Get type type of the argument.
-      var argType = this.gqlParameters[i].gqlType;
-
-      // Determine how to represent the argument, defaulting to null.
-      if (args[i] === null) {
-        combination.push('"null"');
-      } else if (this.gqlTypeToYailType(argType) !== 'text') {
-        combination.push(args[i]);
-      } else {
-        combination.push('"\\\""');
-        combination.push(args[i]);
-        combination.push('"\\\""');
-      }
+      combination.push(args[i]);
 
       // Add commas in between.
       if (i !== args.length - 1) {
