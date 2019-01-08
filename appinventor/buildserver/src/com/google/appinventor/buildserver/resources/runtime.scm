@@ -1317,6 +1317,12 @@
    ((string? arg) (coerce-to-string arg))
    (else *non-coercible-value*)))
 
+(define (coerce-to-key arg)
+  (cond
+   ((number? arg) (coerce-to-number arg))
+   ((string? arg) (coerce-to-string arg))
+   (else *non-coercible-value*)))
+
 (define-syntax use-json-format
   (syntax-rules ()
     ((_)
@@ -2390,7 +2396,122 @@ Dictionary implementation.
 (define (yail-dictionary-lookup key yail-dictionary default)
   (android-log
    (format #f "Dictionary lookup key is  ~A and table is ~A" key yail-dictionary))
-  (let ((result 
+  (let ((result
+    (cond ((instance? yail-dictionary YailList)
+           (yail-alist-lookup key yail-dictionary default))
+          ((instance? yail-dictionary YailDictionary)
+            (*:get (as YailDictionary yail-dictionary) key))
+          (#t default))))
+    (if (null? result)
+      default
+      result))
+)
+
+(define (yail-dictionary-recursive-lookup keys yail-dictionary default)
+  (let ((result (*:recursiveGet (as YailDictionary yail-dictionary) (yail-list-contents keys))))
+    (if (null? result)
+      default
+      result
+    )
+  )
+)
+
+(define (yail-dictionary-get-keys yail-dictionary)
+  ;(yail-list-get-item (make-yail-list (*:keySet (as YailDictionary yail-dictionary))) 1)
+  (YailList:makeList (*:keySet (as YailDictionary yail-dictionary)))
+)
+
+(define (yail-dictionary-get-values yail-dictionary)
+  ;(yail-list-get-item (make-yail-list (*:values (as YailDictionary yail-dictionary))) 1)
+  (YailList:makeList (*:values (as YailDictionary yail-dictionary)))
+)
+
+(define (yail-dictionary-is-key-in key yail-dictionary)
+  (*:containsKey (as YailDictionary yail-dictionary) key)
+)
+
+(define (yail-dictionary-length yail-dictionary)
+  (*:size (as YailDictionary yail-dictionary))
+)
+
+(define (yail-dictionary-alist-to-dict alist)
+  (android-log
+   (format #f "List alist table is ~A" alist))
+  (let loop ((pairs-to-check (yail-list-contents alist)))
+    (cond ((null? pairs-to-check) "The list of pairs has a null pair")
+          ((not (pair-ok? (car pairs-to-check)))
+           (signal-runtime-error
+            (format #f "List of pairs to dict: the list ~A is not a well-formed list of pairs"
+                    (get-display-representation alist))
+            "Invalid list of pairs"))
+          (else (loop (cdr pairs-to-check)))))
+  (YailDictionary:alistToDict alist))
+
+(define (yail-dictionary-dict-to-alist dict)
+  (YailDictionary:dictToAlist dict)
+)
+
+(define (yail-dictionary-copy yail-dictionary)
+  (*:clone (as YailDictionary yail-dictionary))
+)
+
+(define (yail-dictionary-combine-dicts first-dictionary second-dictionary)
+  (*:putAll (as YailDictionary first-dictionary) second-dictionary)
+)
+
+(define (yail-dictionary? x)
+  (instance? x YailDictionary))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; End of Dictionary implementation
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#|
+Dictionary implementation.
+
+- make dictionary           (make-yail-dictionary . pairs)
+- make pair                 (make-dictionary-pair key value)
+- set pair                  (yail-dictionary-set-pair yail-dictionary pair)
+- delete pair               (yail-dictionary-delete-pair yail-dictionary key)
+- dictionary lookup         (yail-dictionary-lookup key yail-dictionary default)
+- dict recursive lookup     (yail-dictionary-recursive-lookup keys yail-dictionary default)
+- get keys                  (yail-dictionary-get-keys yail-dictionary)
+- get values                (yail-dictionary-get-values yail-dictionary)
+- is key in dict            (yail-dictionary-is-key-in key yail-dictionary)
+- get length of dict        (yail-dictionary-length yail-dictionary)
+- get copy of dict          (yail-dictionary-copy yail-dictionary)
+- combine two dicts         (yail-dictionary-combine-dicts first-dictionary second-dictionary)
+- turn alist to dict        (yail-dictionary-alist-to-dict alist)
+- turn dict to alist        (yail-dictionary-dict-to-alist dict)
+
+- is YailDictionary?        (yail-dictionary? x)
+
+|#
+
+(define (make-yail-dictionary . pairs)
+  (YailDictionary:makeDictionary pairs)
+)
+
+(define (make-dictionary-pair key value)
+  (make-yail-list key value)
+)
+
+(define (yail-dictionary-set-pair yail-dictionary pair)
+  (*:setPair (as YailDictionary yail-dictionary) pair)
+)
+
+(define (yail-dictionary-delete-pair yail-dictionary key)
+  (*:remove (as YailDictionary yail-dictionary) key)
+)
+
+(define (yail-dictionary-lookup key yail-dictionary default)
+  (android-log
+   (format #f "Dictionary lookup key is  ~A and table is ~A" key yail-dictionary))
+  (let ((result
     (cond ((instance? yail-dictionary YailList)
            (yail-alist-lookup key yail-dictionary default))
           ((instance? yail-dictionary YailDictionary)
