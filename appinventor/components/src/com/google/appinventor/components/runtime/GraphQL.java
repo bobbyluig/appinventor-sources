@@ -15,6 +15,7 @@ import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
+import com.google.appinventor.components.runtime.util.JsonUtil;
 import com.google.gson.Gson;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -23,6 +24,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.json.JSONException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -109,8 +111,7 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
    * @param gqlResponse  a non-empty response map containing data from executing the associated query.
    */
   @SimpleEvent(description = "Event triggered by the \"Query\" method.")
-  public void GqlGotResponse(final String gqlQueryName, final Map<String, Object> gqlResponse) {
-    assert gqlResponse.size() > 0;
+  public void GqlGotResponse(final String gqlQueryName, final Object gqlResponse) {
     EventDispatcher.dispatchEvent(this, "GqlGotResponse", gqlQueryName, gqlResponse);
 
     // Log event dispatch.
@@ -126,7 +127,6 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
    */
   @SimpleEvent(description = "Indicates that the GraphQL endpoint responded with an error.")
   public void GqlGotError(final String gqlQueryName, final List<String> gqlError) {
-    assert gqlError.size() > 0;
     EventDispatcher.dispatchEvent(this, "GqlGotError", gqlQueryName, gqlError);
 
     // Log event dispatch.
@@ -240,13 +240,27 @@ public class GraphQL extends AndroidNonvisibleComponent implements Component {
         // Extract data from response.
         final Map<String, Object> data = responseMap.data;
 
-        // Post data on the application's main UI thread.
-        androidUIHandler.post(new Runnable() {
-          @Override
-          public void run() {
-            GqlGotResponse(queryName, data);
-          }
-        });
+        try {
+          // Convert to list of list representation.
+          // TODO(bobbyluig): Fix this hack.
+          final Object listOfListData = JsonUtil.getObjectFromJson(gson.toJson(data));
+
+          // Post data on the application's main UI thread.
+          androidUIHandler.post(new Runnable() {
+            @Override
+            public void run() {
+              GqlGotResponse(queryName, listOfListData);
+            }
+          });
+        } catch (final JSONException e) {
+          // Post JSON decoding error on the application's main UI thread.
+          androidUIHandler.post(new Runnable() {
+            @Override
+            public void run() {
+              GqlGotError(queryName, Collections.singletonList(e.getMessage()));
+            }
+          });
+        }
       }
 
       // We are done processing the response, so close it.
